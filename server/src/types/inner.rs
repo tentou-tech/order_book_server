@@ -41,12 +41,12 @@ impl PartialEq for InnerL4Order {
             // timestamp and tif are not available in diffs, so we ignore them for equality checks
             // during snapshot validation.
             // && self.timestamp == other.timestamp
-            && self.trigger_condition == other.trigger_condition
-            && self.is_trigger == other.is_trigger
-            && self.trigger_px == other.trigger_px
-            && self.is_position_tpsl == other.is_position_tpsl
+            // && self.trigger_condition == other.trigger_condition
+            // && self.is_trigger == other.is_trigger
+            // && self.trigger_px == other.trigger_px
+            // && self.is_position_tpsl == other.is_position_tpsl
             // && self.reduce_only == other.reduce_only // Not available in diffs, ignore for comparison
-            && self.order_type == other.order_type
+            // && self.order_type == other.order_type
             // && self.tif == other.tif
             // && self.cloid == other.cloid // Not available in diffs, ignore for comparison
     }

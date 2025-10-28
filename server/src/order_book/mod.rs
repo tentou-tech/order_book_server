@@ -226,8 +226,6 @@ mod tests {
             self.sz = sz.value();
         }
 
-        fn convert_trigger(&mut self, _: u64) {}
-
         fn coin(&self) -> Coin {
             Coin::new("")
         }

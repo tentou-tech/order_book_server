@@ -17,7 +17,7 @@ use fs::File;
 use log::{error, info};
 use notify::{Event, RecursiveMode, Watcher, recommended_watcher};
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     io::{Read, Seek, SeekFrom},
     path::PathBuf,
     sync::Arc,

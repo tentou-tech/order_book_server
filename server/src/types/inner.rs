@@ -7,11 +7,11 @@ use crate::{
         types::{Coin, InnerOrder, Px, Side, Sz},
     },
     prelude::*,
-    types::{L4Order, OrderDiff, node_data::{NodeDataOrderDiff, NodeDataOrderStatus}},
+    types::{L4Order, OrderDiff, node_data::NodeDataOrderDiff},
 };
 
 // L4Order: the struct we keep in the orderbook (computationally better)
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct InnerL4Order {
     pub user: Address,
     pub coin: Coin,
@@ -29,6 +29,29 @@ pub(crate) struct InnerL4Order {
     pub tif: Option<String>,
     pub cloid: Option<String>,
 }
+
+impl PartialEq for InnerL4Order {
+    fn eq(&self, other: &Self) -> bool {
+        self.user == other.user
+            && self.coin == other.coin
+            && self.side == other.side
+            && self.limit_px == other.limit_px
+            && self.sz == other.sz
+            && self.oid == other.oid
+            // timestamp and tif are not available in diffs, so we ignore them for equality checks
+            // during snapshot validation.
+            // && self.timestamp == other.timestamp
+            && self.trigger_condition == other.trigger_condition
+            && self.is_trigger == other.is_trigger
+            && self.trigger_px == other.trigger_px
+            && self.is_position_tpsl == other.is_position_tpsl
+            // && self.reduce_only == other.reduce_only // Not available in diffs, ignore for comparison
+            && self.order_type == other.order_type
+            // && self.tif == other.tif
+            // && self.cloid == other.cloid // Not available in diffs, ignore for comparison
+    }
+}
+impl Eq for InnerL4Order {}
 
 impl InnerOrder for InnerL4Order {
     fn oid(&self) -> Oid {
@@ -60,16 +83,6 @@ impl InnerOrder for InnerL4Order {
         self.decrement_sz(match_sz);
         maker_order.decrement_sz(match_sz);
         match_sz
-    }
-
-    fn convert_trigger(&mut self, ts: u64) {
-        if self.is_trigger {
-            self.trigger_px = "0.0".to_string();
-            self.trigger_condition = "Triggered".to_string();
-            self.is_trigger = false;
-            self.timestamp = ts;
-            self.tif = Some("Gtc".to_string());
-        }
     }
 
     fn coin(&self) -> Coin {
@@ -201,14 +214,6 @@ impl TryFrom<NodeDataOrderDiff> for InnerL4Order {
     }
 }
 
-impl TryFrom<NodeDataOrderStatus> for InnerL4Order {
-    type Error = Error;
-
-    fn try_from(value: NodeDataOrderStatus) -> Result<Self> {
-        (value.user, value.order).try_into()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct InnerLevel {
     pub px: Px,
@@ -224,9 +229,7 @@ impl From<InnerLevel> for Level {
 
 #[derive(Debug, Clone)]
 pub(crate) enum InnerOrderDiff {
-    New {
-        sz: Sz,
-    },
+    New,
     #[allow(dead_code)]
     Update {
         orig_sz: Sz,
@@ -240,7 +243,7 @@ impl TryFrom<OrderDiff> for InnerOrderDiff {
 
     fn try_from(value: OrderDiff) -> Result<Self> {
         Ok(match value {
-            OrderDiff::New { sz } => Self::New { sz: Sz::parse_from_str(&sz)? },
+            OrderDiff::New { .. } => Self::New,
             OrderDiff::Update { orig_sz, new_sz } => {
                 Self::Update { orig_sz: Sz::parse_from_str(&orig_sz)?, new_sz: Sz::parse_from_str(&new_sz)? }
             }

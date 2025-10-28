@@ -147,8 +147,4 @@ impl<T> BatchQueue<T> {
     pub(super) fn pop_front(&mut self) -> Option<Batch<T>> {
         self.deque.pop_front()
     }
-
-    pub(super) fn front(&self) -> Option<&Batch<T>> {
-        self.deque.front()
-    }
 }

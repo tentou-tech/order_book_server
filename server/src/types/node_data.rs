@@ -5,7 +5,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use crate::{
     order_book::{Coin, Oid, Side},
-    types::{Fill, L4Order, OrderDiff},
+    types::{Fill, OrderDiff},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,21 +33,6 @@ impl NodeDataOrderDiff {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct NodeDataFill(pub Address, pub Fill);
-
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-pub(crate) struct NodeDataOrderStatus {
-    pub time: NaiveDateTime,
-    pub user: Address,
-    pub status: String,
-    pub order: L4Order,
-}
-
-impl NodeDataOrderStatus {
-    pub(crate) fn is_inserted_into_book(&self) -> bool {
-        (self.status == "open" && !self.order.is_trigger && (self.order.tif != Some("Ioc".to_string())))
-            || (self.order.is_trigger && self.status == "triggered")
-    }
-}
 
 #[derive(Clone, Copy, strum_macros::Display)]
 pub(crate) enum EventSource {

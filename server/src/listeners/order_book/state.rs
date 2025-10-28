@@ -7,7 +7,7 @@ use crate::{
     prelude::*,
     types::{
         inner::{InnerL4Order, InnerOrderDiff},
-        node_data::{Batch, NodeDataOrderDiff, NodeDataOrderStatus},
+        node_data::{Batch, NodeDataOrderDiff},
     },
 };
 use std::collections::HashSet;
@@ -82,7 +82,7 @@ impl OrderBookState {
             }
             let inner_diff: InnerOrderDiff = diff.diff().try_into()?;
             match inner_diff {
-                InnerOrderDiff::New { .. } => {
+                InnerOrderDiff::New => {
                     let inner_order: InnerL4Order = diff.try_into()?;
                     self.order_book.add_order(inner_order);
                 }

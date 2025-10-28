@@ -35,10 +35,6 @@ impl Subscription {
                     info!("Invalid subscription: coin not found");
                     return false;
                 }
-                if *n_levels == Some(DEFAULT_LEVELS) {
-                    info!("Invalid subscription: set n_levels to this by using null");
-                    return false;
-                }
                 let n_levels = n_levels.unwrap_or(DEFAULT_LEVELS);
                 if n_levels > MAX_LEVELS {
                     info!("Invalid subscription: n_levels too high");

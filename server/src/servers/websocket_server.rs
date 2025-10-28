@@ -159,12 +159,13 @@ async fn handle_socket(
 
                             info!("Client message: {text}");
 
-                            if let Ok(value) = serde_json::from_str::<ClientMessage>(text) {
-                                receive_client_message(&mut socket, &mut manager, value, &universe, listener.clone()).await;
-                            }
-                            else {
+                            match serde_json::from_str::<ClientMessage>(text) {
+                                Ok(value) => receive_client_message(&mut socket, &mut manager, value, &universe, listener.clone()).await,
+                                Err(e) => {
+                                log::warn!("Failed to parse client message: {e}. Message: {text}");
                                 let msg = ServerResponse::Error(format!("Error parsing JSON into valid websocket request: {text}"));
                                 send_socket_message(&mut socket, msg).await;
+                            }
                             }
                         }
                         OpCode::Close => {

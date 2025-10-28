@@ -5,7 +5,7 @@ use crate::{
     order_book::{Coin, Snapshot},
     prelude::*,
     types::{
-        L2Book, L4Book, L4BookUpdates, L4Order, Trade,
+        L2Book, L4Book, L4Order, Trade,
         inner::InnerLevel,
         node_data::{Batch, NodeDataFill, NodeDataOrderDiff, NodeDataOrderStatus},
         subscription::{ClientMessage, DEFAULT_LEVELS, ServerResponse, Subscription, SubscriptionManager},
@@ -128,9 +128,9 @@ async fn handle_socket(
                                     send_ws_data_from_trades(&mut socket, sub, &mut trades).await;
                                 }
                             },
-                            InternalMessage::L4BookUpdates{ diff_batch, status_batch } => {
-                                let mut book_updates = coin_to_book_updates(diff_batch, status_batch);
+                            InternalMessage::L4BookUpdates{ diff_batch } => {
                                 for sub in manager.subscriptions() {
+                                    let mut book_updates = coin_to_book_updates(diff_batch);
                                     send_ws_data_from_book_updates(&mut socket, sub, &mut book_updates).await;
                                 }
                             },
@@ -301,28 +301,18 @@ fn coin_to_trades(batch: &Batch<NodeDataFill>) -> HashMap<String, Vec<Trade>> {
 
 fn coin_to_book_updates(
     diff_batch: &Batch<NodeDataOrderDiff>,
-    status_batch: &Batch<NodeDataOrderStatus>,
-) -> HashMap<String, L4BookUpdates> {
-    let diffs = diff_batch.clone().events();
-    let statuses = status_batch.clone().events();
-    let time = diff_batch.block_time();
-    let height = diff_batch.block_number();
-    let mut updates = HashMap::new();
-    for diff in diffs {
-        let coin = diff.coin().value();
-        updates.entry(coin).or_insert_with(|| L4BookUpdates::new(time, height)).book_diffs.push(diff);
+) -> HashMap<String, Vec<NodeDataOrderDiff>> {
+    let mut coin_to_diffs: HashMap<String, Vec<NodeDataOrderDiff>> = HashMap::new();
+    for diff in diff_batch.clone().events() {
+        coin_to_diffs.entry(diff.coin().value()).or_default().push(diff);
     }
-    for status in statuses {
-        let coin = status.order.coin.clone();
-        updates.entry(coin).or_insert_with(|| L4BookUpdates::new(time, height)).order_statuses.push(status);
-    }
-    updates
+    coin_to_diffs
 }
 
 async fn send_ws_data_from_book_updates(
     socket: &mut WebSocket,
     subscription: &Subscription,
-    book_updates: &mut HashMap<String, L4BookUpdates>,
+    book_updates: &mut HashMap<String, Vec<NodeDataOrderDiff>>,
 ) {
     if let Subscription::L4Book { coin } = subscription {
         if let Some(updates) = book_updates.remove(coin) {

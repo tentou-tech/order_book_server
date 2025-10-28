@@ -7,7 +7,7 @@ use crate::{
         types::{Coin, InnerOrder, Px, Side, Sz},
     },
     prelude::*,
-    types::{L4Order, OrderDiff, node_data::NodeDataOrderStatus},
+    types::{L4Order, OrderDiff, node_data::{NodeDataOrderDiff, NodeDataOrderStatus}},
 };
 
 // L4Order: the struct we keep in the orderbook (computationally better)
@@ -159,6 +159,45 @@ impl From<InnerL4Order> for L4Order {
             tif,
             cloid,
         }
+    }
+}
+
+impl TryFrom<NodeDataOrderDiff> for InnerL4Order {
+    type Error = Error;
+
+    fn try_from(value: NodeDataOrderDiff) -> Result<Self> {
+        let sz = match value.diff() {
+            OrderDiff::New { sz } => sz,
+            _ => return Err("Not a new order diff".into()),
+        };
+        let sz = Sz::parse_from_str(&sz)?;
+        let limit_px = Px::parse_from_str(&value.px)?;
+
+        // These are defaults for a new resting limit order.
+        // The node should not be sending diffs for trigger orders that are not on book.
+        let is_trigger = false;
+        let trigger_px = "0.0".to_string();
+        let trigger_condition = "N/A".to_string();
+        let tif = Some("Gtc".to_string());
+        let order_type = "Limit".to_string();
+
+        Ok(Self {
+            user: value.user,
+            coin: value.coin(),
+            side: value.side,
+            limit_px,
+            sz,
+            oid: value.oid,
+            timestamp: 0, // This field is not available in the diff, and not used for L4 book
+            trigger_condition,
+            is_trigger,
+            trigger_px,
+            is_position_tpsl: false, // Not available in diff
+            reduce_only: false,      // Not available in diff
+            order_type,
+            tif,
+            cloid: None, // Not available in diff
+        })
     }
 }
 

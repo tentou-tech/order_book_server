@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     order_book::types::Side,
-    types::node_data::{NodeDataFill, NodeDataOrderDiff, NodeDataOrderStatus},
+    types::node_data::{NodeDataFill, NodeDataOrderDiff},
 };
 
 pub(crate) mod inner;
@@ -47,7 +47,7 @@ pub(crate) struct L2Book {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) enum L4Book {
     Snapshot { coin: String, time: u64, height: u64, levels: [Vec<L4Order>; 2] },
-    Updates(L4BookUpdates),
+    Updates(Vec<NodeDataOrderDiff>),
 }
 
 impl L2Book {
@@ -73,20 +73,6 @@ impl Trade {
         let time = ask_fill.time;
         let users = [buyer, seller];
         Self { coin, side, px, sz, hash, time, tid, users }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct L4BookUpdates {
-    pub time: u64,
-    pub height: u64,
-    pub order_statuses: Vec<NodeDataOrderStatus>,
-    pub book_diffs: Vec<NodeDataOrderDiff>,
-}
-
-impl L4BookUpdates {
-    pub(crate) const fn new(time: u64, height: u64) -> Self {
-        Self { time, height, order_statuses: Vec::new(), book_diffs: Vec::new() }
     }
 }
 

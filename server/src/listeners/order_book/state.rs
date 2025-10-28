@@ -1,13 +1,13 @@
 use crate::{
     listeners::order_book::{L2Snapshots, TimedSnapshots, utils::compute_l2_snapshots},
     order_book::{
-        Coin, InnerOrder, Oid,
+        Coin, InnerOrder,
         multi_book::{OrderBooks, Snapshots},
     },
     prelude::*,
     types::{
         inner::{InnerL4Order, InnerOrderDiff},
-        node_data::{Batch, NodeDataOrderDiff, NodeDataOrderStatus},
+        node_data::{Batch, NodeDataOrderDiff},
     },
 };
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -63,60 +63,34 @@ impl OrderBookState {
 
     pub(super) fn apply_updates(
         &mut self,
-        order_statuses: Batch<NodeDataOrderStatus>,
         order_diffs: Batch<NodeDataOrderDiff>,
     ) -> Result<()> {
-        let height = order_statuses.block_number();
-        let time = order_statuses.block_time();
-        assert_eq!(order_statuses.block_number(), order_diffs.block_number());
+        let height = order_diffs.block_number();
+        let time = order_diffs.block_time();
         if height > self.height + 1 {
             return Err(format!("Expecting block {}, got block {}", self.height + 1, height).into());
         } else if height <= self.height {
             // This is not an error in case we started caching long before a snapshot is fetched
             return Ok(());
         }
-        let mut diffs = order_diffs.events().into_iter().collect::<VecDeque<_>>();
-        let mut order_map = order_statuses
-            .events()
-            .into_iter()
-            .filter_map(|order_status| {
-                if order_status.is_inserted_into_book() {
-                    Some((Oid::new(order_status.order.oid), order_status))
-                } else {
-                    None
-                }
-            })
-            .collect::<HashMap<_, _>>();
-        while let Some(diff) = diffs.pop_front() {
+        let diffs = order_diffs.events();
+        for diff in diffs {
             let oid = diff.oid();
             let coin = diff.coin();
             if coin.is_spot() && self.ignore_spot {
                 continue;
             }
-            let inner_diff = diff.diff().try_into()?;
+            let inner_diff: InnerOrderDiff = diff.diff().try_into()?;
             match inner_diff {
-                InnerOrderDiff::New { sz } => {
-                    if let Some(order) = order_map.remove(&oid) {
-                        let time = order.time.and_utc().timestamp_millis();
-                        let mut inner_order: InnerL4Order = order.try_into()?;
-                        inner_order.modify_sz(sz);
-                        // must replace time with time of entering book, which is the timestamp of the order status update
-                        #[allow(clippy::unwrap_used)]
-                        inner_order.convert_trigger(time.try_into().unwrap());
-                        self.order_book.add_order(inner_order);
-                    } else {
-                        return Err(format!("Unable to find order opening status {diff:?}").into());
-                    }
+                InnerOrderDiff::New { .. } => {
+                    let inner_order: InnerL4Order = diff.try_into()?;
+                    self.order_book.add_order(inner_order);
                 }
                 InnerOrderDiff::Update { new_sz, .. } => {
-                    if !self.order_book.modify_sz(oid, coin, new_sz) {
-                        return Err(format!("Unable to find order on the book {diff:?}").into());
-                    }
+                    self.order_book.modify_sz(oid, coin, new_sz);
                 }
                 InnerOrderDiff::Remove => {
-                    if !self.order_book.cancel_order(oid, coin) {
-                        return Err(format!("Unable to find order on the book {diff:?}").into());
-                    }
+                    self.order_book.cancel_order(oid, coin);
                 }
             }
         }

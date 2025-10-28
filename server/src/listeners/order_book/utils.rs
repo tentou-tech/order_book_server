@@ -11,6 +11,7 @@ use crate::{
         node_data::{Batch, NodeDataFill, NodeDataOrderDiff, NodeDataOrderStatus},
     },
 };
+use serde::{Deserialize, Serialize};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use reqwest::Client;
 use serde_json::json;
@@ -119,7 +120,6 @@ pub(super) fn compute_l2_snapshots<O: InnerOrder + Send + Sync>(order_books: &Or
 }
 
 pub(super) enum EventBatch {
-    Orders(Batch<NodeDataOrderStatus>),
     BookDiffs(Batch<NodeDataOrderDiff>),
     Fills(Batch<NodeDataFill>),
 }

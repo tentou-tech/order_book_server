@@ -1,16 +1,16 @@
 use crate::{
     listeners::order_book::{L2Snapshots, TimedSnapshots, utils::compute_l2_snapshots},
     order_book::{
-        Coin, InnerOrder,
+        Coin,
         multi_book::{OrderBooks, Snapshots},
     },
     prelude::*,
     types::{
         inner::{InnerL4Order, InnerOrderDiff},
-        node_data::{Batch, NodeDataOrderDiff},
+        node_data::{Batch, NodeDataOrderDiff, NodeDataOrderStatus},
     },
 };
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashSet;
 
 #[derive(Clone)]
 pub(super) struct OrderBookState {

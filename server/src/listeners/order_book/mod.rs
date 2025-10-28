@@ -17,8 +17,7 @@ use fs::File;
 use log::{error, info};
 use notify::{Event, RecursiveMode, Watcher, recommended_watcher};
 use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     io::{Read, Seek, SeekFrom},
     path::PathBuf,
     sync::Arc,
@@ -32,7 +31,7 @@ use tokio::{
     },
     time::{Instant, interval_at, sleep},
 };
-use utils::{BatchQueue, EventBatch, process_rmp_file, validate_snapshot_consistency, NodeDataOrderStatus};
+use utils::{BatchQueue, EventBatch, process_rmp_file, validate_snapshot_consistency};
 
 mod state;
 mod utils;
@@ -144,7 +143,7 @@ fn fetch_snapshot(
                 sleep(Duration::from_secs(1)).await;
                 let mut cache = {
                     let mut listener = listener.lock().await;
-                    listener.take_cache()
+                    listener.take_cache().into_iter().collect::<VecDeque<_>>()
                 };
                 info!("Cache has {} elements", cache.len());
                 match snapshot {
@@ -186,7 +185,7 @@ pub(crate) struct OrderBookListener {
     order_book_state: Option<OrderBookState>,
     order_diff_cache: BatchQueue<NodeDataOrderDiff>,
     // Only Some when we want it to collect updates
-    fetched_snapshot_cache: Option<VecDeque<(Batch<NodeDataOrderStatus>, Batch<NodeDataOrderDiff>)>>,
+    fetched_snapshot_cache: Option<VecDeque<Batch<NodeDataOrderDiff>>>,
     internal_message_tx: Option<Sender<Arc<InternalMessage>>>,
 }
 
@@ -237,6 +236,9 @@ impl OrderBookListener {
                     .as_mut()
                     .map(|book| book.apply_updates(order_diffs.clone()))
                     .transpose()?;
+                if let Some(cache) = &mut self.fetched_snapshot_cache {
+                    cache.push_back(order_diffs.clone());
+                }
                 if let Some(tx) = &self.internal_message_tx {
                     let tx = tx.clone();
                     tokio::spawn(async move {
@@ -256,7 +258,7 @@ impl OrderBookListener {
     }
 
     // tkae the cached updates and stop collecting updates
-    fn take_cache(&mut self) -> VecDeque<(Batch<NodeDataOrderStatus>, Batch<NodeDataOrderDiff>)> {
+    fn take_cache(&mut self) -> VecDeque<Batch<NodeDataOrderDiff>> {
         self.fetched_snapshot_cache.take().unwrap_or_default()
     }
 

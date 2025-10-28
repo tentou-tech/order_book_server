@@ -7,7 +7,7 @@ use crate::{
     types::{
         L2Book, L4Book, L4Order, Trade,
         inner::InnerLevel,
-        node_data::{Batch, NodeDataFill, NodeDataOrderDiff, NodeDataOrderStatus},
+        node_data::{Batch, NodeDataFill, NodeDataOrderDiff},
         subscription::{ClientMessage, DEFAULT_LEVELS, ServerResponse, Subscription, SubscriptionManager},
     },
 };

@@ -71,8 +71,13 @@ pub(super) fn validate_snapshot_consistency<O: Clone + PartialEq + Debug>(
             return Err(format!("Missing {} book", coin.value()).into());
         }
     }
-    if !snapshot_map.is_empty() {
-        return Err("Extra orderbooks detected".to_string().into());
+    // If there are remaining books in the expected snapshot, ensure they are all empty.
+    // The internal state may not track coins with empty books, which is valid.
+    for (coin, book) in snapshot_map {
+        let book_ref = book.as_ref();
+        if !book_ref[0].is_empty() || !book_ref[1].is_empty() {
+            return Err(format!("Extra non-empty orderbook detected for coin: {}", coin.value()).into());
+        }
     }
     Ok(())
 }

@@ -264,10 +264,15 @@ async fn send_ws_data_from_snapshot(
         if let Some(snapshot) =
             snapshot.and_then(|snapshot| snapshot.get(&L2SnapshotParams::new(*n_sig_figs, *mantissa)))
         {
-            let n_levels = n_levels.unwrap_or(DEFAULT_LEVELS);
-            let snapshot = snapshot.truncate(n_levels);
-            let snapshot = snapshot.export_inner_snapshot();
-            let l2_book = L2Book::from_l2_snapshot(coin.clone(), snapshot, time);
+            let final_levels = if let Some(0) = n_levels {
+                // If n_levels is Some(0), return all levels without truncation
+                snapshot.clone().export_inner_snapshot()
+            } else {
+                // Otherwise, truncate to the specified or default number of levels
+                let num_levels_to_truncate = n_levels.unwrap_or(DEFAULT_LEVELS);
+                snapshot.truncate(num_levels_to_truncate).export_inner_snapshot()
+            };
+            let l2_book = L2Book::from_l2_snapshot(coin.clone(), final_levels, time);
             let msg = ServerResponse::L2Book(l2_book);
             send_socket_message(socket, msg).await;
         } else {

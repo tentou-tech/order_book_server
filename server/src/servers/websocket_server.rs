@@ -14,7 +14,7 @@ use crate::{
 use axum::{Router, response::IntoResponse, routing::get};
 use futures_util::{SinkExt, StreamExt};
 use log::{error, info};
-use std::{
+use std::{time::Duration,
     collections::{HashMap, HashSet},
     env::home_dir,
     sync::Arc,
@@ -41,10 +41,26 @@ pub async fn run_websocket_server(address: &str, ignore_spot: bool, compression_
     let listener = Arc::new(Mutex::new(listener));
     {
         let listener = listener.clone();
+        let home_dir = home_dir.clone();
         tokio::spawn(async move {
-            if let Err(err) = hl_listen(listener, home_dir).await {
-                error!("Listener fatal error: {err}");
-                std::process::exit(1);
+            const MAX_RETRIES: u32 = 3;
+            const RETRY_INTERVAL: Duration = Duration::from_secs(300); // 5 minutes
+            let mut retries = 0;
+
+            loop {
+                let listener_clone = listener.clone();
+                let home_dir_clone = home_dir.clone();
+                if let Err(err) = hl_listen(listener_clone, home_dir_clone).await {
+                    error!("Listener error: {err}");
+                    if retries < MAX_RETRIES {
+                        retries += 1;
+                        error!("Attempting to restart listener... (attempt {}/{})", retries, MAX_RETRIES);
+                        tokio::time::sleep(RETRY_INTERVAL).await;
+                    } else {
+                        error!("Listener failed after {} retries. Exiting.", MAX_RETRIES);
+                        std::process::exit(1);
+                    }
+                }
             }
         });
     }
